@@ -16,11 +16,10 @@ class Agent:
         self.controller = Controller()
         self.message_manager = MessageManager(task)
         self.llm_client = GroqClient(
-            api_key=settings.llm.groq_api_key,
-            model=settings.llm.groq_model,
-            temperature=settings.llm.temperature,
-            max_tokens=settings.llm.max_completion_tokens,
-            top_p=settings.llm.top_p,
+        api_key=settings.llm.groq_api_key,
+        model=settings.llm.groq_model,
+        temperature=settings.llm.temperature,
+        max_tokens=settings.llm.max_completion_tokens,
         )
         if settings.use_vision:
             self.vision_processor = VisionProcessor(settings.vision)
