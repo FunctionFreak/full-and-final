@@ -6,6 +6,10 @@ from core.message_manager import MessageManager
 from core.state import AgentState
 from llm.groq_client import GroqClient
 from vision.vision_processor import VisionProcessor
+import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 class Agent:
     def __init__(self, task, settings):
@@ -16,11 +20,13 @@ class Agent:
         self.controller = Controller()
         self.message_manager = MessageManager(task)
         self.llm_client = GroqClient(
-        api_key=settings.llm.groq_api_key,
-        model=settings.llm.groq_model,
-        temperature=settings.llm.temperature,
-        max_tokens=settings.llm.max_completion_tokens,
+            api_key=settings.llm.groq_api_key,
+            model=settings.llm.groq_model,
+            temperature=settings.llm.temperature,
+            max_tokens=settings.llm.max_completion_tokens,
         )
+        self.n_steps = 0
+        self.consecutive_failures = 0
         if settings.use_vision:
             self.vision_processor = VisionProcessor(settings.vision)
         else:
@@ -31,70 +37,91 @@ class Agent:
         await self.browser.initialize()
         
         for step in range(max_steps):
-            print(f"\n--- Step {step+1}/{max_steps} ---")
-            # Retrieve current browser state (DOM, URL, screenshot, etc.)
-            browser_state = await self.browser.get_state()
+            logger.info(f"\n📍 Step {self.n_steps}")
+            self.n_steps += 1
             
-            # Process vision if enabled and a screenshot is available
-            if self.vision_processor and browser_state.get('screenshot'):
-                vision_results = await self.vision_processor.process(
-                    browser_state['screenshot'], browser_state
-                )
-                browser_state['vision'] = vision_results
+            try:
+                # Get current browser state
+                browser_state = await self.browser.get_state()
+                
+                # Process vision if enabled
+                if self.vision_processor and browser_state.get('screenshot'):
+                    vision_results = await self.vision_processor.process(
+                        browser_state['screenshot'], browser_state
+                    )
+                    browser_state['vision'] = vision_results
+                
+                # Add state to message history
+                self.message_manager.add_state_message(browser_state)
+                
+                # Get prompt for LLM
+                prompt_message = self.message_manager.get_latest_message()
+                
+                # Get next action from LLM
+                llm_response = await self.llm_client.chat_completion(prompt_message)
+                logger.info(f"LLM Response: {llm_response}")
+                
+                # Parse actions from LLM response
+                try:
+                    actions = self.parse_llm_response(llm_response)
+                    if not actions:
+                        logger.warning("No valid actions received. Continuing to next step.")
+                        continue
+                        
+                    # Execute actions
+                    results = await self.controller.multi_act(actions, self.browser)
+                    logger.info(f"Action results: {results}")
+                    
+                    # Update state
+                    self.state.update(llm_response, results)
+                    self.consecutive_failures = 0
+                    
+                    # Check if task is done
+                    if self.state.is_done():
+                        logger.info("✅ Task completed successfully!")
+                        break
+                except Exception as e:
+                    logger.error(f"Error processing LLM response: {e}")
+                    self.consecutive_failures += 1
+                    if self.consecutive_failures >= 3:
+                        logger.error("Too many consecutive failures. Stopping.")
+                        break
+                
+            except Exception as e:
+                logger.error(f"Error during step execution: {e}")
+                self.consecutive_failures += 1
+                if self.consecutive_failures >= 3:
+                    logger.error("Too many consecutive failures. Stopping.")
+                    break
             
-            # Add the current state to the message manager (with prompts)
-            self.message_manager.add_state_message(browser_state)
-            
-            # Retrieve the latest message to send as prompt for the LLM
-            prompt_message = self.message_manager.get_latest_message()
-            
-            # Request next action from the LLM via Groq DeepSeek
-            llm_response = await self.llm_client.chat_completion(prompt_message)
-            print("LLM Response:", llm_response)
-            
-            # Parse the LLM response to extract action commands
-            actions = self.parse_llm_response(llm_response)
-            if not actions:
-                print("No valid actions received. Terminating agent loop.")
-                break
-            
-            # Execute the actions using the controller
-            results = await self.controller.multi_act(actions, self.browser)
-            print("Action results:", results)
-            
-            # Update agent state based on the LLM response and executed actions
-            self.state.update(llm_response, results)
-            
-            # Check if task is marked as completed
-            if self.state.is_done():
-                print("Task completed successfully!")
-                break
-
-            await asyncio.sleep(0.1)  # Small delay between steps
+            await asyncio.sleep(0.5)  # Small delay between steps
 
         return self.state.history
 
     def parse_llm_response(self, llm_response):
         """
         Parse the LLM JSON response to extract action commands.
-        Uses the response_parser from the llm module.
         """
-        from llm.response_parser import parse_response
         try:
-            actions = parse_response(llm_response)
+            # Remove markdown formatting if present
+            cleaned_response = llm_response
+            if "```json" in cleaned_response:
+                cleaned_response = cleaned_response.split("```json")[1].split("```")[0].strip()
+            elif "```" in cleaned_response:
+                cleaned_response = cleaned_response.split("```")[1].split("```")[0].strip()
+            
+            response_json = json.loads(cleaned_response)
+            
+            if "current_state" not in response_json or "action" not in response_json:
+                logger.error("Response missing required fields: current_state and action")
+                return None
+            
+            actions = response_json.get("action", [])
+            if not isinstance(actions, list):
+                logger.error("The 'action' field is not a list.")
+                return None
+                
             return actions
         except Exception as e:
-            print(f"Error parsing LLM response: {e}")
+            logger.error(f"Failed to parse LLM response: {e}")
             return None
-
-# For testing purposes:
-if __name__ == "__main__":
-    async def main():
-        settings = load_settings()
-        # For example, task could be: "Go to google.com and search for Python programming"
-        task = "Go to google.com and search for Python programming"
-        agent = Agent(task, settings)
-        history = await agent.run(max_steps=10)
-        print("Agent History:", history)
-    
-    asyncio.run(main())
