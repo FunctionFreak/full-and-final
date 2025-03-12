@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 import os
+print("GROQ_API_KEY loaded:", os.getenv("GROQ_API_KEY"))
 
 class BrowserSettings(BaseModel):
     headless: bool = Field(default=True, description="Run browser in headless mode")
