@@ -1,5 +1,8 @@
+# browser-assistant/config/settings.py
 from pydantic import BaseModel, Field
 import os
+
+# Debug print to verify the API key is loaded.
 print("GROQ_API_KEY loaded:", os.getenv("GROQ_API_KEY"))
 
 class BrowserSettings(BaseModel):
@@ -29,16 +32,12 @@ class LLMSettings(BaseModel):
         description="Groq model name"
     )
     temperature: float = Field(
-        default=float(os.getenv("GROQ_TEMPERATURE", 0.6)),
+        default=float(os.getenv("GROQ_TEMPERATURE", 0.7)),
         description="Temperature for LLM responses"
     )
     max_completion_tokens: int = Field(
-        default=int(os.getenv("GROQ_MAX_TOKENS", 4096)),
+        default=int(os.getenv("GROQ_MAX_TOKENS", 200)),
         description="Maximum tokens for LLM responses"
-    )
-    top_p: float = Field(
-        default=float(os.getenv("GROQ_TOP_P", 0.95)),
-        description="Top-p sampling parameter"
     )
 
 class Settings(BaseModel):
