@@ -228,31 +228,40 @@ Interactive Elements:
             logger.error(f"Failed to add LLM response: {e}")
 
     def get_latest_message(self):
-        """Get the latest state message for the LLM"""
-        # For simplicity, we'll use the whole conversation history
-        # In a production environment, you might want to limit this based on token count
-        
-        # Format the messages for the LLM in a proper conversational format
-        formatted_conversation = ""
+        """Get the latest state message for the LLM with improved JSON generation guidance"""
         
         # Always include system prompt
-        formatted_conversation += self.messages[0]["content"] + "\n\n"
+        formatted_conversation = self.messages[0]["content"]
         
-        # Add the conversation history
+        # Add specific JSON instructions at the top for higher priority
+        json_instruction = """
+    IMPORTANT: Your response MUST be in valid JSON format with this exact structure:
+    {
+    "current_state": {
+        "evaluation_previous_goal": "String with evaluation",
+        "memory": "String with memory of what has been done",
+        "next_goal": "String with next immediate goal"
+    },
+    "action": [
+        {"action_name": {"param_name": "param_value"}}
+    ]
+    }
+    """
+        formatted_conversation = json_instruction + "\n\n" + formatted_conversation
+        
+        # Add recent conversation history (limited to last 3 exchanges to reduce token count)
         # Skip the first message (system prompt) since we already included it
-        for msg in self.messages[1:]:
+        for msg in self.messages[-6:]:  # Only include the last few messages
             role = msg["role"]
             content = msg["content"]
             
             if role == "user":
-                formatted_conversation += "User message:\n"
+                formatted_conversation += "\nUser message:\n"
             elif role == "assistant":
-                formatted_conversation += "Assistant response:\n"
+                formatted_conversation += "\nAssistant response:\n"
                 
-            formatted_conversation += content + "\n\n"
-            
+            if len(content) > 2000:  # Limit very long messages
+                content = content[:2000] + "... (truncated)"
+            formatted_conversation += content + "\n"
+        
         return formatted_conversation
-
-    def get_message_history(self):
-        """Get the full message history"""
-        return self.messages

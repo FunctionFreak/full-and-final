@@ -1,0 +1,12 @@
+00:29:30 - INFO - Registered 11 actions: navigate, go_back, go_forward, click_element, input_text, scroll, switch_tab, open_tab, close_tab, extract_content, done
+00:29:30 - INFO - Using GROQ_API_KEY: gsk_h...zJ8Np
+00:29:30 - INFO - Initializing browser...
+00:29:31 - INFO - Browser initialized successfully.
+00:29:32 - INFO - Added state message with 0 elements
+00:29:44 - INFO - LLM Response: {"current_state": {"evaluation_previous_goal": "Failed - API error", "memory": "API error occurred while processing the request", "next_goal": "Please retry or check API configuration"}, "action": [{"done": {"text": "API error: 400 - {\"error\":{\"message\":\"Failed to generate JSON. Please adjust your prompt. See 'failed_generation' for more details.\",\"type\":\"invalid_request_error\",\"code\":\"json_validate_failed\",\"failed_generation\":\"\"}}\n", "success": false}}]}
+00:29:44 - INFO - Executing action: done with params: {'text': 'API error: 400 - {"error":{"message":"Failed to generate JSON. Please adjust your prompt. See \'failed_generation\' for more details.","type":"invalid_request_error","code":"json_validate_failed","failed_generation":""}}\n', 'success': False}
+00:29:44 - INFO - Task completed with success=False
+00:29:44 - INFO - Action done succeeded: Task complete
+00:29:44 - INFO - Action results: [{'is_done': True, 'success': False, 'message': 'Task complete', 'extracted_content': 'API error: 400 - {"error":{"message":"Failed to generate JSON. Please adjust your prompt. See \'failed_generation\' for more details.","type":"invalid_request_error","code":"json_validate_failed","failed_generation":""}}\n', 'include_in_memory': True}]
+00:29:49 - INFO - Closing browser...
+00:29:49 - INFO - Browser closed.

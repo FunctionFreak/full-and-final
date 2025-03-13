@@ -5,6 +5,40 @@ import os
 from config.settings import load_settings
 from terminal.interface import TerminalInterface
 
+# In your logging_config.py or at the start of main.py
+import sys
+
+# Configure logging with UTF-8 encoding
+class EncodingSafeStreamHandler(logging.StreamHandler):
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            stream = self.stream
+            # Replace emoji with text alternatives
+            msg = msg.replace("📍", "[STEP]")
+            msg = msg.replace("✅", "[SUCCESS]")
+            msg = msg.replace("⚠️", "[WARNING]")
+            msg = msg.replace("❌", "[FAIL]")
+            stream.write(msg + self.terminator)
+            self.flush()
+        except Exception:
+            self.handleError(record)
+
+def setup_logging():
+    # Clear existing handlers
+    root = logging.getLogger()
+    root.handlers = []
+    
+    # Create new handler
+    handler = EncodingSafeStreamHandler(sys.stdout)
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', 
+                                  '%H:%M:%S')
+    handler.setFormatter(formatter)
+    
+    # Configure root logger
+    root.addHandler(handler)
+    root.setLevel(logging.INFO)
+
 def setup_logging(level=logging.INFO, log_file=None):
     """Configure logging for the application"""
     format_str = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'

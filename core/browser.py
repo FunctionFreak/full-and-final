@@ -19,22 +19,37 @@ class Browser:
         and create or get a browser page.
         """
         logger.info("Initializing browser...")
-        self.playwright = await async_playwright().start()
-        # Launch Chromium using the provided user data directory and headless mode
-        self.context = await self.playwright.chromium.launch_persistent_context(
-            user_data_dir=self.browser_settings.user_data_dir,
-            headless=self.browser_settings.headless,
-            args=['--no-sandbox', '--disable-infobars', '--disable-dev-shm-usage']
-        )
-        # Use the first available page, or create one if none exist
-        if self.context.pages:
-            self.page = self.context.pages[0]
-        else:
+        try:
+            self.playwright = await async_playwright().start()
+            
+            # Create a new temporary directory for this session
+            import tempfile
+            temp_dir = tempfile.mkdtemp(prefix="browser_assistant_")
+            
+            # Launch browser with a fresh profile
+            browser = await self.playwright.chromium.launch(
+                headless=self.browser_settings.headless,
+                args=['--no-sandbox', '--disable-infobars', '--disable-dev-shm-usage']
+            )
+            
+            # Create a new context
+            self.context = await browser.new_context()
+            
+            # Create a new page
             self.page = await self.context.new_page()
-        
-        # Set viewport size
-        await self.page.set_viewport_size({"width": 1280, "height": 800})
-        logger.info("Browser initialized successfully.")
+            
+            # Navigate to blank page to ensure browser is working
+            await self.page.goto("about:blank")
+            
+            # Set viewport size
+            await self.page.set_viewport_size({"width": 1280, "height": 800})
+            logger.info("Browser initialized successfully.")
+        except Exception as e:
+            logger.error(f"Browser initialization failed: {e}")
+            # Clean up partial initialization
+            if hasattr(self, 'playwright') and self.playwright:
+                await self.playwright.stop()
+            raise
 
     async def get_state(self):
         """
