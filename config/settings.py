@@ -6,7 +6,7 @@ import os
 print("GROQ_API_KEY loaded:", os.getenv("GROQ_API_KEY"))
 
 class BrowserSettings(BaseModel):
-    headless: bool = Field(default=True, description="Run browser in headless mode")
+    headless: bool = Field(default=False, description="Run browser in headless mode")
     user_data_dir: str = Field(
         default=os.getenv("CHROME_USER_PATH", r"C:\Users\aashi\AppData\Local\Google\Chrome\User Data"),
         description="Chrome user data directory"
